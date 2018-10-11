@@ -17,7 +17,9 @@ public class ClientHandler implements Runnable
     private String name;
 
 
-
+    public String getName() {
+        return name;
+    }
 
     public ClientHandler(Socket clientSocket, ServerSocket serverSocket, String name) throws IOException {
         this.clientSocket = clientSocket;
@@ -40,21 +42,56 @@ public class ClientHandler implements Runnable
     {
         while (true)
         {
+            String message = null;
+
+            //Recieves message from this client
             try {
-                String message = this.recieveRead.readLine();
+                message = this.recieveRead.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+
+            if (message != null)
+            {
+                for (Socket socket : connectedSockets)
+                {
+                    try
+                    {
+                        PrintWriter pwrite = new PrintWriter(socket.getOutputStream(), true);
+                        pwrite.println(message);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            /*
+
+
 
                 if (message != null)
                 {
+                    System.out.println("Message is not null");
                     for (Socket socket : connectedSockets)
                     {
-                        PrintWriter pwrite = new PrintWriter(socket.getOutputStream(), true);
+                        System.out.println("We start printing");
+                        PrintWriter pwrite = null;
+                        try {
+                            pwrite = new PrintWriter(socket.getOutputStream(), true);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
 
                         pwrite.println(message);
                     }
                 }
-            } catch (IOException e) {
+
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
                 e.printStackTrace();
-            }
+            }*/
         }
     }
 }

@@ -2,6 +2,7 @@ package Server.Mandatory.Client;
 
 import Server.Mandatory.Stuff.Command;
 
+import javax.sound.sampled.Port;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -27,7 +28,6 @@ public class ClientWritable implements Runnable
     public void run()
     {
         try {
-            OutputStream oStream = null;
             BufferedReader keyBoard = new BufferedReader(new InputStreamReader(System.in));
 
             do {
@@ -37,7 +37,7 @@ public class ClientWritable implements Runnable
                     if (!isClientCommand(message))
                     {
                         if (clientSocket != null && clientSocket.isConnected()) {
-                            PrintWriter pwrite = new PrintWriter(oStream, true);
+                            PrintWriter pwrite = new PrintWriter(clientSocket.getOutputStream(), true);
 
                             pwrite.println(message);
                         }
@@ -52,13 +52,14 @@ public class ClientWritable implements Runnable
 
     private boolean isClientCommand(String message)
     {
-        String[] commandMessage = message.split(" ");
 
-        if (!commandMap.containsKey(commandMessage[0]))
+        //checks if the first word is a command if so
+        //it will execute the command
+        if (!commandMap.containsKey(message.split(" ")[0]))
         {
             return false;
         }else{
-            commandMap.get(commandMessage[0]).execute(commandMessage);
+            commandMap.get(message.split(" ")[0]).execute(message);
         }
         return true;
     }
@@ -69,7 +70,7 @@ public class ClientWritable implements Runnable
 
         commandMap.put("/quit", new Command() {
             @Override
-            public boolean execute(String[] message) {
+            public boolean execute(String commandMessage) {
                 try
                 {
                     clientSocket.close();
@@ -82,58 +83,123 @@ public class ClientWritable implements Runnable
         });
         commandMap.put("/join", new Command() {
             @Override
-            public boolean execute(String[] commandMessage)
-            {
-                if (!(commandMessage.length == 2))
-                {
-                    if (commandMessage.length > 2)
-                    {
-                        System.out.println("Too many argument");
-                        return false;
-                    }else if (commandMessage.length < 2)
-                    {
-                        System.out.println("Too few arguments");
-                        return false;
-                    }
-                }
+            public boolean execute(String commandMessage) {
+                //Grabbing the first element after the "/join " message
+                String ipInfo = commandMessage.split(" ")[1];
 
-                InetAddress ipAdress = null;
-                int port = 0;
+                clientSocket = connectSocket(ipInfo);
 
-                try {
-                    String IPAndPort = commandMessage[1];
-                    String[] IPAndPortArray = commandMessage[1].split(":");
+                if (clientSocket.isConnected()) {
 
-                    ipAdress = InetAddress.getByName(IPAndPortArray[0]);
-                } catch (UnknownHostException e) {
-                    e.printStackTrace();
-                }
+                    try {
+                        PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
+                        printWriter.println("JOIN " +name +", "+clientSocket.getInetAddress().getHostName() +":"+clientSocket.getPort());
+                        System.out.println("sent message");
 
-                if (!(ipAdress == null) && port != 0 || !(ipAdress == null) && ipAdress.toString().equals("localhost/127.0.0.1"))
-                {
-                    try{
-                        clientSocket = new Socket(ipAdress, PORT);
-                        System.out.println(clientSocket.isConnected());
-                        if (clientSocket.isConnected())
-                        {
-                            OutputStream oStream = clientSocket.getOutputStream();
-                            System.out.println("Successfully connected to " + clientSocket.toString());
+                        startReadable(clientSocket);
 
-                            try(PrintWriter printWriter = new PrintWriter(oStream))
-                            {
-                                printWriter.println("JOIN <<" + name + ">>, <<" + ipAdress.toString() + ">>:<<" + PORT + ">>");
-                            }
-                            return true;
-                        }
-                    }catch (Exception e)
-                    {
+                        return true;
+                    }catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
+
+
                 return false;
             }
         });
 
         return commandMap;
     }
+
+    private Socket connectSocket(String ipInfo)
+    {
+        Socket socket = null;
+
+        try {
+            if (ipInfo.equals("localhost")) {
+
+                return new Socket(InetAddress.getByName(ipInfo), PORT);
+
+            } else {
+
+                //If the ipInfo sent from the command does not contain :
+                //Program will use default port 12000
+                if (!ipInfo.contains(":")) {
+                    return new Socket(InetAddress.getByName(ipInfo), PORT);
+                } else {
+                    //User specified port
+                    //splits string on : and uses [0] and [1]
+                    return new Socket(InetAddress.getByName(ipInfo.split(":")[0]), Integer.parseInt(ipInfo.split(":")[1]));
+                }
+            }
+        }catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return socket;
+    }
+
+    public void startReadable(Socket socket)
+    {
+        Thread readThread = new Thread(new ClientReadable(clientSocket, name));
+        readThread.start();
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

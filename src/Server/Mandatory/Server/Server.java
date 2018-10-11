@@ -9,6 +9,7 @@ import java.util.List;
 public class Server
 {
     public static List<Socket> connectedSockets = new ArrayList<>();
+    public static List<ClientHandler> clients = new ArrayList<>();
 
     public static void main(String[] args) throws IOException
     {
@@ -30,24 +31,39 @@ public class Server
             //recieves join statement from client
             String command = recieveRead.readLine();
 
-
             connectedSockets.add(clientSocket);
             clientCount++;
 
+            String name = command.split(" ")[1].replace(",", "");
 
-            System.out.println("Client " + clientCount + " has connected");
-            ClientHandler clientHandler = new ClientHandler(clientSocket, serverSocket, name);
-            Thread thread = new Thread(clientHandler);
-            thread.start();
+            PrintWriter pwrite = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            try{
-                for (Socket socket : connectedSockets)
+            Boolean isNameTaken = false;
+            for (ClientHandler client : clients)
+            {
+                System.out.println(client.getName());
+                if (client.getName().equals(name))
                 {
-                    PrintWriter pwrite = new PrintWriter(socket.getOutputStream(), true);
-
-                    pwrite.println(" has joined the channel");
+                    isNameTaken = true;
+                    break;
                 }
-            }finally{}
+            }
+
+            System.out.println(name + " is taken: " + isNameTaken);
+
+            if (isNameTaken)
+            {
+                System.out.println("name was taken");
+                pwrite.println("J_ER 1:name is already in use");
+            }else {
+                System.out.println("name was not taken");
+                ClientHandler clientHandler = new ClientHandler(clientSocket, serverSocket, name);
+                clients.add(clientHandler);
+
+                Thread thread = new Thread(clientHandler);
+                thread.start();
+                pwrite.println("J_OK");
+            }
         }
     }
 }

@@ -8,5 +8,5 @@ public abstract class Command
     {
     }
 
-    public abstract boolean execute(String[] message);
+    public abstract boolean execute(String commandMessage);
 }

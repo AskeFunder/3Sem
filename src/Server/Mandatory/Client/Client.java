@@ -18,7 +18,8 @@ public class Client
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
 
 
-        //User enters username
+        //User enters username and will ask
+        //again until username is filled
         while (name == null)
         {
             System.out.println("Enter your name for chat");
@@ -33,10 +34,7 @@ public class Client
 
                     //Create and starts write and read thread
                     Thread writeThread = new Thread(new ClientWritable(clientSocket, name));
-                    Thread readThread = new Thread(new ClientReadable(clientSocket, name));
-
                     writeThread.start();
-                    readThread.start();
 
                     System.out.println("Client is now ready to use, connect using /join");
 
