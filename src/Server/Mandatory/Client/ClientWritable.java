@@ -101,7 +101,12 @@ public class ClientWritable implements Runnable
                         PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
                         printWriter.println("JOIN " +name +", "+clientSocket.getInetAddress().getHostName() +":"+clientSocket.getPort());
 
-                        startReadable(clientSocket);
+                        Thread readThread = new Thread(new ClientReadable(clientSocket, name));
+                        readThread.start();
+
+                        Thread heartbeat = new Thread(new Heartbeatable(clientSocket));
+                        heartbeat.start();
+
 
                         return true;
                     }catch (IOException e) {
@@ -134,6 +139,24 @@ public class ClientWritable implements Runnable
                 return true;
             }
         });
+
+        commandMap.put("/list", new Command() {
+            @Override
+            public boolean execute(String commandMessage)
+            {
+                if (clientSocket.isConnected())
+                {
+                    try {
+                        PrintWriter pwrite = new PrintWriter(clientSocket.getOutputStream(), true);
+                        pwrite.println("LIST");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return false;
+            }
+        });
+
 
 
 
@@ -173,11 +196,7 @@ public class ClientWritable implements Runnable
         return socket;
     }
 
-    public void startReadable(Socket socket)
-    {
-        Thread readThread = new Thread(new ClientReadable(clientSocket, name));
-        readThread.start();
-    }
+
 }
 
 

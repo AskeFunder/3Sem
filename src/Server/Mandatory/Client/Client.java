@@ -14,8 +14,11 @@ public class Client
         String recieveMessage, sendMessage;
         String name = null;
 
+
+
         //Reads from keyboard, keyboard object
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
+
 
 
         //User enters username and will ask
@@ -40,7 +43,7 @@ public class Client
 
                 }catch (Exception e)
                 {
-
+                    e.printStackTrace();
                 }
         }
 

@@ -3,7 +3,6 @@ package Server.Mandatory.Stuff;
 public abstract class Command
 {
 
-
     protected Command()
     {
     }

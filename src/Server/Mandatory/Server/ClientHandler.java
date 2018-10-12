@@ -5,8 +5,8 @@ import Server.Mandatory.Stuff.Command;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.HashMap;
-import java.util.List;
 
 public class ClientHandler implements Runnable
 {
@@ -18,14 +18,32 @@ public class ClientHandler implements Runnable
     private BufferedReader recieveRead;
     private String name;
     private HashMap<String, Command> serverCommands = new HashMap<>();
-    boolean isAlive;
+    private boolean shouldRun;
+    private boolean isAlive = false;
 
-    public void setAlive(boolean alive) {
-        isAlive = alive;
+    public void setShouldRun(boolean shouldRun) {
+        this.shouldRun = shouldRun;
+    }
+    public boolean getShouldRun()
+    {
+        return this.shouldRun;
     }
 
     public String getName() {
         return name;
+    }
+
+    public boolean isAlive() {
+        return isAlive;
+    }
+
+    public boolean getAlive()
+    {
+        return this.isAlive;
+    }
+
+    public void setAlive(boolean alive) {
+        this.isAlive = alive;
     }
 
     public ClientHandler(Socket clientSocket, ServerSocket serverSocket, String name) throws IOException {
@@ -42,32 +60,37 @@ public class ClientHandler implements Runnable
         this.istream = clientSocket.getInputStream();
         this.recieveRead = new BufferedReader(new InputStreamReader(istream));
 
-
-
         this.name = name;
     }
 
     @Override
     public void run()
     {
+        shouldRun = true;
         isAlive = true;
-        while (isAlive)
+        while (shouldRun)
         {
+            Thread heartbeatCheck = new Thread(new heartbeatCheckable());
+            heartbeatCheck.start();
+            isAlive = true;
             String message = null;
 
             //Recieves message from this client
             try {
                 System.out.println("ready to read");
-                message = this.recieveRead.readLine();
+                System.out.println(clientSocket.isConnected());
+
+                    message = this.recieveRead.readLine();
+
                 System.out.println("message: " + message);
             } catch (IOException e) {
-                e.printStackTrace();
+
+            } catch (Exception e)
+            {
+                System.out.println("hello");
             }
 
-            if (!isServerCommand(message))
-            {
-                System.out.println("not command");
-            }
+
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
@@ -80,7 +103,7 @@ public class ClientHandler implements Runnable
     {
         if (commandMsg != null)
         {
-            System.out.println("Command msg was not null");
+
             if (commandMsg.split(" ").length > 0) {
                 if (serverCommands.containsKey(commandMsg.split(" ")[0])) {
                     if (serverCommands.get(commandMsg.split(" ")[0]).execute(commandMsg)) {
@@ -92,8 +115,8 @@ public class ClientHandler implements Runnable
         return false;
     }
 
-    public boolean isAlive() {
-        return isAlive;
+    public boolean isShouldRun() {
+        return shouldRun;
     }
 
     private HashMap<String,Command> initializeServerCommandList()
@@ -131,13 +154,70 @@ public class ClientHandler implements Runnable
                         pwrite.println(name + " has left the server");
                     } catch (IOException e) {
                         e.printStackTrace();
+                        return false;
                     }
                 }
 
-
+                shouldRun = false;
                 return true;
             }
         });
+
+        serverCommands.put("LIST", new Command() {
+            @Override
+            public boolean execute(String commandMessage)
+            {
+                PrintWriter pwrite = null;
+                try {
+                    pwrite = new PrintWriter(clientSocket.getOutputStream(), true);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                for (String name : Server.clients.keySet())
+                {
+                    pwrite.println(name);
+                }
+                return true;
+            }
+        });
+
+        serverCommands.put("IMALIVE", new Command() {
+            @Override
+            public boolean execute(String commandMessage) {
+                System.out.println(name + " is alive");
+                setAlive(true);
+                return true;
+            }
+        });
+
         return serverCommands;
+    }
+
+    private class heartbeatCheckable implements Runnable
+    {
+
+
+
+        @Override
+        public void run()
+        {
+            while (getShouldRun())
+            {
+                System.out.println("Should run is true");
+
+                if (getAlive()) {
+                    System.out.println("Get alive is true");
+                    setAlive(false);
+                    System.out.println(name + " is alive: " + isAlive);
+                } else {
+                    serverCommands.get("QUIT");
+                }
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }
