@@ -1,15 +1,18 @@
 package Server.Mandatory.Server;
 
+import Server.Mandatory.Client.Client;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Server
 {
-    public static List<Socket> connectedSockets = new ArrayList<>();
-    public static List<ClientHandler> clients = new ArrayList<>();
+    public static Map<String, Socket> clients = new HashMap<>();
 
     public static void main(String[] args) throws IOException
     {
@@ -30,38 +33,24 @@ public class Server
 
             //recieves join statement from client
             String command = recieveRead.readLine();
-
-            connectedSockets.add(clientSocket);
-            clientCount++;
-
+            //special regex for the join message from
+            //the client to get name
             String name = command.split(" ")[1].replace(",", "");
 
             PrintWriter pwrite = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            Boolean isNameTaken = false;
-            for (ClientHandler client : clients)
-            {
-                System.out.println(client.getName());
-                if (client.getName().equals(name))
-                {
-                    isNameTaken = true;
-                    break;
-                }
-            }
+            Boolean isNameTaken = clients.containsKey(name);
 
-            System.out.println(name + " is taken: " + isNameTaken);
 
             if (isNameTaken)
             {
-                System.out.println("name was taken");
-                pwrite.println("J_ER 1:name is already in use");
-            }else {
-                System.out.println("name was not taken");
+                pwrite.println("J_ER 1: Name is taken");
+            }else{
                 ClientHandler clientHandler = new ClientHandler(clientSocket, serverSocket, name);
-                clients.add(clientHandler);
-
                 Thread thread = new Thread(clientHandler);
                 thread.start();
+
+                clients.put(name, clientSocket);
                 pwrite.println("J_OK");
             }
         }

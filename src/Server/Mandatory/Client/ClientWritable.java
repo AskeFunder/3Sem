@@ -17,6 +17,7 @@ public class ClientWritable implements Runnable
     private Map<String, Command> commandMap = initializeCommands();
     private final int PORT = 12000;
     private String name;
+    private boolean isRunning = true;
 
     public ClientWritable(Socket clientSocket, String name)
     {
@@ -36,10 +37,11 @@ public class ClientWritable implements Runnable
                 {
                     if (!isClientCommand(message))
                     {
-                        if (clientSocket != null && clientSocket.isConnected()) {
+                        if (clientSocket != null && clientSocket.isConnected())
+                        {
                             PrintWriter pwrite = new PrintWriter(clientSocket.getOutputStream(), true);
 
-                            pwrite.println(message);
+                            pwrite.println("DATA " + name + ": " + message);
                         }
                     }
                 }
@@ -73,7 +75,11 @@ public class ClientWritable implements Runnable
             public boolean execute(String commandMessage) {
                 try
                 {
+                    PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
+                    printWriter.println("QUIT");
+
                     clientSocket.close();
+                    isRunning = false;
                     return true;
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -94,7 +100,6 @@ public class ClientWritable implements Runnable
                     try {
                         PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
                         printWriter.println("JOIN " +name +", "+clientSocket.getInetAddress().getHostName() +":"+clientSocket.getPort());
-                        System.out.println("sent message");
 
                         startReadable(clientSocket);
 
@@ -109,7 +114,34 @@ public class ClientWritable implements Runnable
             }
         });
 
+        commandMap.put("/name", new Command() {
+            @Override
+            public boolean execute(String commandMessage)
+            {
+                if (commandMessage.length() > 1)
+                {
+                    setName(commandMessage.split(" ")[1]);
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        commandMap.put("/ping", new Command() {
+            @Override
+            public boolean execute(String commandMessage) {
+                System.out.println("pong");
+                return true;
+            }
+        });
+
+
+
         return commandMap;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     private Socket connectSocket(String ipInfo)

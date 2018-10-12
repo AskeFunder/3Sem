@@ -1,8 +1,11 @@
 package Server.Mandatory.Server;
 
+import Server.Mandatory.Stuff.Command;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.List;
 
 public class ClientHandler implements Runnable
@@ -13,9 +16,13 @@ public class ClientHandler implements Runnable
     private OutputStream ostream;
     private InputStream istream;
     private BufferedReader recieveRead;
-    private List<Socket> connectedSockets;
     private String name;
+    private HashMap<String, Command> serverCommands = new HashMap<>();
+    boolean isAlive;
 
+    public void setAlive(boolean alive) {
+        isAlive = alive;
+    }
 
     public String getName() {
         return name;
@@ -25,6 +32,9 @@ public class ClientHandler implements Runnable
         this.clientSocket = clientSocket;
         this.serverSocket = serverSocket;
 
+        //initializes server command
+        serverCommands = initializeServerCommandList();
+
         //Send to client
         this.ostream = clientSocket.getOutputStream();
 
@@ -32,7 +42,7 @@ public class ClientHandler implements Runnable
         this.istream = clientSocket.getInputStream();
         this.recieveRead = new BufferedReader(new InputStreamReader(istream));
 
-        this.connectedSockets = Server.connectedSockets;
+
 
         this.name = name;
     }
@@ -40,58 +50,94 @@ public class ClientHandler implements Runnable
     @Override
     public void run()
     {
-        while (true)
+        isAlive = true;
+        while (isAlive)
         {
             String message = null;
 
             //Recieves message from this client
             try {
+                System.out.println("ready to read");
                 message = this.recieveRead.readLine();
+                System.out.println("message: " + message);
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
-
-            if (message != null)
+            if (!isServerCommand(message))
             {
-                for (Socket socket : connectedSockets)
+                System.out.println("not command");
+            }
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public boolean isServerCommand(String commandMsg)
+    {
+        if (commandMsg != null)
+        {
+            System.out.println("Command msg was not null");
+            if (commandMsg.split(" ").length > 0) {
+                if (serverCommands.containsKey(commandMsg.split(" ")[0])) {
+                    if (serverCommands.get(commandMsg.split(" ")[0]).execute(commandMsg)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean isAlive() {
+        return isAlive;
+    }
+
+    private HashMap<String,Command> initializeServerCommandList()
+    {
+        serverCommands.put("DATA", new Command() {
+            @Override
+            public boolean execute(String commandMessage) {
+                if (commandMessage.length() > 2)
                 {
-                    try
-                    {
-                        PrintWriter pwrite = new PrintWriter(socket.getOutputStream(), true);
-                        pwrite.println(message);
+                    try {
+                        for (Socket socket : Server.clients.values())
+                        {
+                            PrintWriter pwrite = new PrintWriter(socket.getOutputStream(), true);
+                            pwrite.println(name + ": " + commandMessage.split(" ")[2]);
+
+                        }
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
+                return true;
             }
+        });
 
-            /*
+        serverCommands.put("QUIT", new Command() {
+            @Override
+            public boolean execute(String commandMessage)
+            {
+                Server.clients.remove(name);
 
-
-
-                if (message != null)
+                for (Socket socket : Server.clients.values())
                 {
-                    System.out.println("Message is not null");
-                    for (Socket socket : connectedSockets)
-                    {
-                        System.out.println("We start printing");
-                        PrintWriter pwrite = null;
-                        try {
-                            pwrite = new PrintWriter(socket.getOutputStream(), true);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
-                        pwrite.println(message);
+                    try {
+                        PrintWriter pwrite = new PrintWriter(socket.getOutputStream(), true);
+                        pwrite.println(name + " has left the server");
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
 
-            try {
-                Thread.sleep(20);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }*/
-        }
+
+                return true;
+            }
+        });
+        return serverCommands;
     }
 }

@@ -9,6 +9,7 @@ import java.net.Socket;
 public class ClientReadable implements Runnable
 {
     private Socket clientSocket;
+    private boolean isLoggedIn;
 
     public ClientReadable(Socket clientSocket, String name)
     {
@@ -28,15 +29,21 @@ public class ClientReadable implements Runnable
 
         try {
             String joinMessage = recieveRead.readLine();
-            if (joinMessage.equals("J_OK"));
+            if (joinMessage.equals("J_OK"))
             {
-                System.out.println("J_OK recieved");
+                isLoggedIn = true;
+                System.out.println("Is logged in: " + isLoggedIn);
+            }else{
+                if (joinMessage.equals("J_ER 1: Name is taken"))
+                {
+                    System.out.println("Name is already taken, please change name with /name <new name>");
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        while (true) {
+        while (isLoggedIn) {
             if (clientSocket.isConnected()) {
                 try {
                     String message = recieveRead.readLine();
