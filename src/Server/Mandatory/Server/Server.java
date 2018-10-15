@@ -20,7 +20,7 @@ public class Server
         int clientCount = 0;
 
         ServerSocket serverSocket = new ServerSocket(12000);
-        System.out.println("Server ready for chatting");
+        System.out.println("Server ready for chatting mashallah ");
 
         while(true)
         {

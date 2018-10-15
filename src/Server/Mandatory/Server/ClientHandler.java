@@ -20,6 +20,7 @@ public class ClientHandler implements Runnable
     private HashMap<String, Command> serverCommands = new HashMap<>();
     private boolean shouldRun;
     private boolean isAlive = false;
+    Thread heartbeatCheck;
 
     public void setShouldRun(boolean shouldRun) {
         this.shouldRun = shouldRun;
@@ -70,19 +71,17 @@ public class ClientHandler implements Runnable
         isAlive = true;
         while (shouldRun)
         {
-            Thread heartbeatCheck = new Thread(new heartbeatCheckable());
+            heartbeatCheck = new Thread(new heartbeatCheckable());
             heartbeatCheck.start();
             isAlive = true;
             String message = null;
 
             //Recieves message from this client
             try {
-                System.out.println("ready to read");
-                System.out.println(clientSocket.isConnected());
+                message = this.recieveRead.readLine();
+                isServerCommand(message);
 
-                    message = this.recieveRead.readLine();
 
-                System.out.println("message: " + message);
             } catch (IOException e) {
 
             } catch (Exception e)
@@ -124,6 +123,7 @@ public class ClientHandler implements Runnable
         serverCommands.put("DATA", new Command() {
             @Override
             public boolean execute(String commandMessage) {
+                System.out.println("Data was executed");
                 if (commandMessage.length() > 2)
                 {
                     try {
@@ -146,12 +146,15 @@ public class ClientHandler implements Runnable
             public boolean execute(String commandMessage)
             {
                 Server.clients.remove(name);
+                System.out.println(name + " has left the server");
 
                 for (Socket socket : Server.clients.values())
                 {
                     try {
                         PrintWriter pwrite = new PrintWriter(socket.getOutputStream(), true);
                         pwrite.println(name + " has left the server");
+                        heartbeatCheck.interrupt();
+                        Thread.currentThread().interrupt();
                     } catch (IOException e) {
                         e.printStackTrace();
                         return false;
@@ -184,11 +187,11 @@ public class ClientHandler implements Runnable
         serverCommands.put("IMALIVE", new Command() {
             @Override
             public boolean execute(String commandMessage) {
-                System.out.println(name + " is alive");
                 setAlive(true);
                 return true;
             }
         });
+
 
         return serverCommands;
     }
@@ -203,17 +206,15 @@ public class ClientHandler implements Runnable
         {
             while (getShouldRun())
             {
-                System.out.println("Should run is true");
-
                 if (getAlive()) {
-                    System.out.println("Get alive is true");
                     setAlive(false);
-                    System.out.println(name + " is alive: " + isAlive);
                 } else {
-                    serverCommands.get("QUIT");
+                    serverCommands.get("QUIT").execute("");
                 }
+
+
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(10000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

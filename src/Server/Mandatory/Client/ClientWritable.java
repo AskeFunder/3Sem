@@ -18,6 +18,8 @@ public class ClientWritable implements Runnable
     private final int PORT = 12000;
     private String name;
     private boolean isRunning = true;
+    private Thread readThread;
+    private Thread heartbeat;
 
     public ClientWritable(Socket clientSocket, String name)
     {
@@ -29,12 +31,17 @@ public class ClientWritable implements Runnable
     public void run()
     {
         try {
+            //Ready for user input
             BufferedReader keyBoard = new BufferedReader(new InputStreamReader(System.in));
 
             do {
+                //reads userinput
+                System.out.println("Ready to read");
                 String message = keyBoard.readLine();
                 if (message != null)
                 {
+                    //if message was not a client command, it will be sent to the server as a text message
+                    //if it is a command it will be executed and isClientCommand will return false
                     if (!isClientCommand(message))
                     {
                         if (clientSocket != null && clientSocket.isConnected())
@@ -45,7 +52,7 @@ public class ClientWritable implements Runnable
                         }
                     }
                 }
-            }while (true);
+            }while (isRunning);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -66,6 +73,7 @@ public class ClientWritable implements Runnable
         return true;
     }
 
+    //starts up all commands
     private Map<String, Command> initializeCommands()
     {
         Map<String, Command> commandMap = new HashMap<>();
@@ -78,15 +86,20 @@ public class ClientWritable implements Runnable
                     PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
                     printWriter.println("QUIT");
 
-                    clientSocket.close();
                     isRunning = false;
+                    System.out.println("Exiting the program");
+
+                    readThread.interrupt();
+                    heartbeat.interrupt();
+                    Thread.currentThread().interrupt();
                     return true;
                 } catch (IOException e) {
                     e.printStackTrace();
+                    return false;
                 }
-                return false;
             }
         });
+
         commandMap.put("/join", new Command() {
             @Override
             public boolean execute(String commandMessage) {
@@ -98,13 +111,15 @@ public class ClientWritable implements Runnable
                 if (clientSocket.isConnected()) {
 
                     try {
-                        PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
-                        printWriter.println("JOIN " +name +", "+clientSocket.getInetAddress().getHostName() +":"+clientSocket.getPort());
+                        //Creates printwrite and sends the join protocol to the server
+                        PrintWriter pwrite = new PrintWriter(clientSocket.getOutputStream(), true);
+                        pwrite.println("JOIN " +name +", "+clientSocket.getInetAddress().getHostName() +":"+clientSocket.getPort());
 
-                        Thread readThread = new Thread(new ClientReadable(clientSocket, name));
+                        //starts heartbeat and readable thread
+                        readThread =  new Thread(new ClientReadable(clientSocket, name));
                         readThread.start();
 
-                        Thread heartbeat = new Thread(new Heartbeatable(clientSocket));
+                        heartbeat = new Thread(new Heartbeatable(clientSocket));
                         heartbeat.start();
 
 
@@ -119,6 +134,7 @@ public class ClientWritable implements Runnable
             }
         });
 
+        //changes name
         commandMap.put("/name", new Command() {
             @Override
             public boolean execute(String commandMessage)
@@ -132,14 +148,8 @@ public class ClientWritable implements Runnable
             }
         });
 
-        commandMap.put("/ping", new Command() {
-            @Override
-            public boolean execute(String commandMessage) {
-                System.out.println("pong");
-                return true;
-            }
-        });
 
+        //request the server to print a list of every connected user
         commandMap.put("/list", new Command() {
             @Override
             public boolean execute(String commandMessage)
@@ -167,6 +177,9 @@ public class ClientWritable implements Runnable
         this.name = name;
     }
 
+
+    //@Param ipInfo is info about the connection sent to the method
+    //from this info, this message creates and returns a socket
     private Socket connectSocket(String ipInfo)
     {
         Socket socket = null;

@@ -46,10 +46,6 @@ public class Client
                     e.printStackTrace();
                 }
         }
-
-
-        //Continues until user has entered a valid IP Adress
-        // and a connection has successfully been made
     }
 }
 
